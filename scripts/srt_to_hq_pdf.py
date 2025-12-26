@@ -108,7 +108,20 @@ def draw_multiline_text(draw, text, box, font, fill, padding=10, align="center")
         y_text += line_height
 
 
-# Gera imagens com legenda, borda e compressão JPEG
+
+# Fonte para tempo da legenda (legenda de imagem, monoespaçada)
+try:
+    fonte_tempo = ImageFont.truetype("DejaVuSansMono-Bold.ttf", 48)
+except:
+    fonte_tempo = ImageFont.load_default()
+
+def format_time(seg):
+    h = int(seg // 3600)
+    m = int((seg % 3600) // 60)
+    s = int(seg % 60)
+    return f"{h:02}:{m:02}:{s:02}"
+
+# Gera imagens com legenda, borda, tempo e compressão JPEG
 frames_legenda = []
 for idx, (start, end, texto) in enumerate(dialogos):
     img = get_frame_at_time(cap, start)
@@ -117,9 +130,9 @@ for idx, (start, end, texto) in enumerate(dialogos):
     largura, altura = img.size
     # Proporção do quadro: legenda 80%, imagem 20% (legenda ocupa 80% do quadro)
     quadro_w = largura + 32  # 16px padding/borda cada lado
-    quadro_h = altura + int(4*altura) + 32  # 80% legenda, 20% imagem
+    quadro_h = altura + int(4*altura) + 32 + 60  # 80% legenda, 20% imagem, + espaço tempo
     legenda_h = int(0.8*quadro_h)
-    img_h = quadro_h - legenda_h - 16
+    img_h = quadro_h - legenda_h - 16 - 60
     img_resized = img.resize((quadro_w-32, img_h), Image.LANCZOS)
     quadro = Image.new('RGB', (quadro_w, quadro_h), (255,255,255))
     draw = ImageDraw.Draw(quadro)
@@ -133,6 +146,11 @@ for idx, (start, end, texto) in enumerate(dialogos):
     draw_multiline_text(draw, texto, legenda_box, fonte, fill=(0,0,0), padding=10, align="center")
     # Cola imagem na parte inferior
     quadro.paste(img_resized, (16, 16+legenda_h))
+    # Tempo da legenda em vermelho, centralizado, abaixo do frame
+    tempo_str = f"{format_time(start)} - {format_time(end)}"
+    tempo_y = 16 + legenda_h + img_h + 8
+    tempo_x = quadro_w // 2
+    draw.text((tempo_x, tempo_y), tempo_str, font=fonte_tempo, fill=(220,0,0), anchor="ma")
     # Compressão JPEG
     temp_path = os.path.join(temp_dir, f'frame_{idx:05d}.jpg')
     quadro.save(temp_path, 'JPEG', quality=90, optimize=True)
