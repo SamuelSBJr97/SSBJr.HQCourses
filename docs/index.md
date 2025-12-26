@@ -10,7 +10,7 @@ Explore os cursos com versões em HQ para tornar o aprendizado mais envolvente.
 <ul>
 {% for course in site.courses %}
   <li>
-    <a href="{{ course.url }}">{{ course.title }}</a>
+    <a href="{{ course.url | relative_url }}">{{ course.title }}</a>
   </li>
 {% endfor %}
 </ul>

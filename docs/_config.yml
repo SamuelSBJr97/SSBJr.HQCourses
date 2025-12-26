@@ -1,8 +1,9 @@
 title: Curso HQ Catalogo
 markdown: kramdown
-# Use a simple baseurl if you deploy in a project site (username.github.io/repo)
-# baseurl: ""
-# For organization/user site, leave baseurl empty.
+# Set `url` and `baseurl` for a project site hosted at
+# https://samuelsbjr97.github.io/SSBJr.HQCourses
+url: "https://samuelsbjr97.github.io"
+baseurl: "/SSBJr.HQCourses"
 permalink: pretty
 collections:
   courses:
