@@ -48,8 +48,19 @@ def ensure_video_in_vse(video_path):
     bpy.context.scene.frame_end = int(strip.frame_start + strip.frame_final_duration - 1)
     return strip
 
-# Garante que o vídeo está na timeline
-ensure_video_in_vse(video_path)
+
+# Garante que o vídeo está na timeline e ajusta largura do vídeo para igualar à legenda
+strip = ensure_video_in_vse(video_path)
+scene = bpy.context.scene
+video_width = strip.elements[0].orig_width
+video_height = strip.elements[0].orig_height
+scene.render.resolution_x = video_width
+scene.render.resolution_y = video_height
+scene.render.resolution_percentage = 100
+# Ajusta largura do vídeo para 80% da tela (igual à legenda)
+strip.transform.scale_x = 0.8
+strip.transform.offset_x = int((scene.render.resolution_x * (1-0.8)/2))
+strip.transform.offset_y = int(-scene.render.resolution_y * 0.25)  # Vídeo na parte inferior
 
 def parse_srt(srt_path):
     import re
@@ -103,7 +114,7 @@ def add_vse_subtitle_strip(text, frame, vse):
     strip.text = text
     strip.font_size = font_size
     strip.location[0] = 0.5
-    strip.location[1] = 0.15
+    strip.location[1] = 0.85  # Legenda no topo
     strip.color = subtitle_color[:4]
     strip.use_box = True
     strip.box_color = balloon_color
