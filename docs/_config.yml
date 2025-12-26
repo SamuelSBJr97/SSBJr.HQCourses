@@ -1,0 +1,13 @@
+title: Curso HQ Catalogo
+markdown: kramdown
+# Use a simple baseurl if you deploy in a project site (username.github.io/repo)
+# baseurl: ""
+# For organization/user site, leave baseurl empty.
+permalink: pretty
+collections:
+  courses:
+    output: true
+    permalink: /courses/:slug/
+# Include assets folder
+include:
+  - assets

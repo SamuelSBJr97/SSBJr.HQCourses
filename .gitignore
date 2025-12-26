@@ -1,0 +1,77 @@
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Editors/IDE ---
+.vscode/
+.history/
+.idea/
+*.iml
+*.code-workspace
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.so
+*.egg-info/
+*.egg
+.installed.cfg
+pip-wheel-metadata/
+
+# Environments
+.env
+.env.*
+.venv/
+venv/
+env/
+
+# Packaging/Build
+build/
+dist/
+
+# Testing/Type checking caches
+.pytest_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+.cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs & temp files
+*.log
+*~
+*.swp
+*.swo
+
+# --- Jekyll build output ---
+_site/
+
+# --- Project-specific generated outputs ---
+# Keep sources under version control; ignore heavy generated artifacts
+outputs/
+generated/
+tmp/
+temp/
+data/cache/
+data/tmp/
+
+# Common image outputs from converters (scoped to output folders)
+outputs/**/*.png
+outputs/**/*.jpg
+outputs/**/*.jpeg
+outputs/**/*.gif
+generated/**/*.png
+generated/**/*.jpg
+generated/**/*.jpeg
+generated/**/*.gif
+
+# Conversion artifacts (scoped)
+outputs/**/*.pdf
+
+# Lock files from .af assets
+*~lock~

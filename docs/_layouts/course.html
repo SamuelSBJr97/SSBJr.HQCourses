@@ -1,0 +1,24 @@
+---
+layout: default
+---
+
+<h1>{{ page.title }}</h1>
+
+{% if page.description %}
+<p>{{ page.description }}</p>
+{% endif %}
+
+<h2>Aulas</h2>
+<ol>
+{% for lesson in page.lessons %}
+  <li>
+    <strong>{{ lesson.title }}</strong><br />
+    {% if lesson.original_markdown %}
+      <a href="{{ lesson.original_markdown | relative_url }}">Original (Markdown)</a>
+    {% endif %}
+    {% if lesson.hq_pdf %}
+      • <a href="{{ lesson.hq_pdf | relative_url }}">Versão HQ (PDF)</a>
+    {% endif %}
+  </li>
+{% endfor %}
+</ol>

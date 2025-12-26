@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ page.title }} | {{ site.title }}</title>
+    <link rel="stylesheet" href="{{ "/assets/css/style.css" | relative_url }}" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap">
+        <a class="site-title" href="{{ "/" | relative_url }}">{{ site.title }}</a>
+        <nav class="site-nav">
+          <a href="{{ "/" | relative_url }}">Catálogo</a>
+        </nav>
+      </div>
+    </header>
+    <main class="wrap">
+      {{ content }}
+    </main>
+    <footer class="site-footer">
+      <div class="wrap">
+        <small>Feito para jovens aprenderem com HQs — {{ site.title }}</small>
+      </div>
+    </footer>
+  </body>
+</html>
