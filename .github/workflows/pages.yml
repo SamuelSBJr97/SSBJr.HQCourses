@@ -1,8 +1,7 @@
-name: Build and Deploy Pages (Jekyll)
+name: DISABLED - Build and Deploy Pages (Jekyll)
 
 on:
-  push:
-    branches: [ "main" ]
+  # Disable automatic triggers; allow manual dispatch only
   workflow_dispatch:
 
 permissions:
@@ -16,6 +15,7 @@ concurrency:
 
 jobs:
   build:
+    if: false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -33,6 +33,7 @@ jobs:
           path: ./_site
 
   deploy:
+    if: false
     runs-on: ubuntu-latest
     needs: build
     environment:
