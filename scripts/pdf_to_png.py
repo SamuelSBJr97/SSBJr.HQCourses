@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-"""
+r"""
 Converter PDF em PNG por página usando PyMuPDF (fitz).
 
 Uso básico (PowerShell/Windows):
-    python .\util\pdf_to_png.py -i "C:\\caminho\\arquivo.pdf" -o .\saidas --dpi 200
+    python .\scripts\pdf_to_png.py -i "C:\\caminho\\arquivo.pdf" -o .\saidas --dpi 200
 
 Requerimentos:
     pip install PyMuPDF
