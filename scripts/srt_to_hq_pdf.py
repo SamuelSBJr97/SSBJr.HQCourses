@@ -205,7 +205,94 @@ def montar_pdf(frames_legenda, colunas, linhas, output_pdf):
     else:
         print(f"Nenhuma página gerada para {output_pdf}!")
 
-# Gera PDF 2x3
+
+# --- PDF com texto selecionável e pesquisável usando reportlab ---
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
+from reportlab.lib.colors import Color, black, red
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+
+def montar_pdf_texto(frames_legenda, dialogos, colunas, linhas, output_pdf):
+    pagina_w, pagina_h = pagina_tamanho
+    c = canvas.Canvas(output_pdf, pagesize=(pagina_w, pagina_h))
+    # Registrar fonte grande (Arial ou padrão)
+    try:
+        pdfmetrics.registerFont(TTFont('HQFont', fonte_path or 'arial.ttf'))
+        font_name = 'HQFont'
+    except:
+        font_name = 'Helvetica'
+
+    frame_w = (pagina_w - 2*margem_x - (colunas-1)*espacamento_x) // colunas
+    frame_h = (pagina_h - 2*margem_y - (linhas-1)*espacamento_y) // linhas
+    legenda_h = frame_h // 2
+    tempo_h = 60  # Altura aproximada para tempo
+
+    for i in range(0, len(frames_legenda), colunas*linhas):
+        for j, frame_path in enumerate(frames_legenda[i:i+colunas*linhas]):
+            idx = i + j
+            if idx >= len(dialogos):
+                continue
+            start, end, texto = dialogos[idx]
+            linha = j // colunas
+            coluna = j % colunas
+            x = margem_x + coluna * (frame_w + espacamento_x)
+            y = pagina_h - (margem_y + (linha+1)*(frame_h + espacamento_y)) + espacamento_y
+            # Área da legenda
+            legenda_box_h = int(0.8 * frame_h)  # 80% da altura do quadro
+            # Ajustar tamanho da fonte para caber 80% da área
+            max_font = 200
+            min_font = 16
+            font_size = max_font
+            while font_size > min_font:
+                c.setFont(font_name, font_size)
+                lines = []
+                words = texto.split()
+                line = ''
+                for word in words:
+                    test_line = (line + ' ' + word).strip()
+                    if c.stringWidth(test_line, font_name, font_size) > frame_w*0.95:
+                        lines.append(line)
+                        line = word
+                    else:
+                        line = test_line
+                if line:
+                    lines.append(line)
+                total_text_height = len(lines) * (font_size + 8)
+                if total_text_height <= legenda_box_h:
+                    break
+                font_size -= 2
+            # Centralizar verticalmente
+            y_text = y + frame_h - (total_text_height + tempo_h + 10)
+            for line in lines:
+                text_width = c.stringWidth(line, font_name, font_size)
+                x_text = x + (frame_w - text_width) / 2
+                c.setFillColor(black)
+                c.drawString(x_text, y_text, line)
+                y_text += font_size + 8
+            # Imagem
+            img = Image.open(frame_path)
+            img_y = y + tempo_h
+            img_h = frame_h - tempo_h
+            img = img.resize((frame_w, img_h), Image.LANCZOS)
+            img_reader = ImageReader(img)
+            c.drawImage(img_reader, x, img_y, width=frame_w, height=img_h)
+            # Tempo da legenda
+            tempo_str = f"{format_time(start)} - {format_time(end)}"
+            c.setFont(font_name, 40)
+            c.setFillColor(red)
+            tempo_width = c.stringWidth(tempo_str, font_name, 40)
+            c.drawString(x + (frame_w - tempo_width)/2, y + 8, tempo_str)
+        c.showPage()
+    c.save()
+    print(f"PDF HQ com texto selecionável gerado: {output_pdf}")
+
+# Gera PDF 2x3 (imagem + texto selecionável)
+montar_pdf_texto(frames_legenda, dialogos, 2, 3, 'hq_livro_2x3_texto.pdf')
+# Gera PDF 1x6 (imagem + texto selecionável)
+montar_pdf_texto(frames_legenda, dialogos, 1, 6, 'hq_livro_1x6_texto.pdf')
+
+# Mantém também a versão só imagem, se desejar
 montar_pdf(frames_legenda, 2, 3, output_pdf_2x3)
-# Gera PDF 1x6
 montar_pdf(frames_legenda, 1, 6, output_pdf_1x6)
