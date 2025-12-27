@@ -139,7 +139,7 @@ for idx, (start, end, texto) in enumerate(dialogos):
     quadro.paste(img_resized, (0, 0))
     # Compressão JPEG
     temp_path = os.path.join(temp_dir, f'frame_{idx:05d}.jpg')
-    quadro.save(temp_path, 'JPEG', quality=80, optimize=True)
+    quadro.save(temp_path, 'JPEG', quality=60, optimize=True, progressive=True)
     frames_legenda.append(temp_path)
 
 cap.release()
@@ -169,11 +169,12 @@ def montar_pdf(frames_legenda, colunas, linhas, output_pdf):
         paginas[0].save(
             output_pdf,
             "PDF",
-            resolution=200,
+            resolution=150,
             save_all=True,
             append_images=paginas[1:],
-            quality=80,
-            optimize=True
+            quality=60,
+            optimize=True,
+            progressive=True
         )
         print(f"PDF HQ gerado: {output_pdf}")
     else:
@@ -200,42 +201,71 @@ def montar_pdf_texto(frames_legenda, dialogos, colunas, linhas, output_pdf):
 
     frame_w = (pagina_w - 2*margem_x - (colunas-1)*espacamento_x) // colunas
     frame_h = (pagina_h - 2*margem_y - (linhas-1)*espacamento_y) // linhas
-    legenda_h = int(0.4 * frame_h)
-    tempo_h = 60
-    img_h = frame_h - legenda_h - tempo_h
+    legenda_h = int(0.25 * frame_h)  # Área menor para legenda
+    tempo_h = 50  # Reduzido para aproximar legenda do topo
+    espaco_legenda_frame = 36  # Espaço maior entre legenda e frame
+    img_h = frame_h - legenda_h - tempo_h - espaco_legenda_frame
+
+    # Determinar o maior tamanho de fonte único possível para todas as legendas, considerando o texto completo em linha única se possível
+    MIN_FONTE_LEGENDA = 18
+    MAX_FONTE_LEGENDA = 44
+    melhor_tamanho = MIN_FONTE_LEGENDA
+    for test_size in range(MAX_FONTE_LEGENDA, MIN_FONTE_LEGENDA-1, -1):
+        cabe_todas = True
+        for _, _, texto in dialogos:
+            # Tenta colocar o texto em uma linha só, se couber
+            if c.stringWidth(texto, font_name, test_size) <= frame_w*0.9:
+                total_text_height = test_size + 8
+            else:
+                lines = simpleSplit(texto, font_name, test_size, frame_w*0.9)
+                total_text_height = len(lines) * (test_size + 8)
+            if total_text_height > legenda_h:
+                cabe_todas = False
+                break
+        if cabe_todas:
+            melhor_tamanho = test_size
+            break
 
     for i in range(0, len(frames_legenda), colunas*linhas):
-        for j, frame_path in enumerate(frames_legenda[i:i+colunas*linhas]):
-            idx = i + j
-            if idx >= len(dialogos):
-                continue
-            start, end, texto = dialogos[idx]
-            linha = j // colunas
-            coluna = j % colunas
-            x = margem_x + coluna * (frame_w + espacamento_x)
-            y = pagina_h - (margem_y + (linha+1)*(frame_h + espacamento_y)) + espacamento_y
-            # Usar tamanho fixo de fonte para legenda, alinhado à esquerda
-            font_size = 40
-            lines = simpleSplit(texto, font_name, font_size, frame_w*0.9)
-            # Alinhar à esquerda
-            y_text = y + frame_h - legenda_h
-            for line in lines:
-                x_text = x + 10  # Margem esquerda
-                c.setFillColor(black)
-                c.drawString(x_text, y_text, line)
-                y_text += font_size + 8
-            # Imagem
-            img_y = y + tempo_h
-            img = Image.open(frame_path)
-            img = img.resize((frame_w, img_h), Image.LANCZOS)
-            img_reader = ImageReader(img)
-            c.drawImage(img_reader, x, img_y, width=frame_w, height=img_h)
-            # Tempo da legenda em fonte menor
-            tempo_str = f"{format_time(start)} - {format_time(end)}"
-            c.setFont(font_name, 30)
-            c.setFillColor(red)
-            tempo_width = c.stringWidth(tempo_str, font_name, 30)
-            c.drawString(x + (frame_w - tempo_width)/2, y + 8, tempo_str)
+        # Nova página
+        for linha in range(linhas):
+            for coluna in range(colunas):
+                j = linha * colunas + coluna
+                idx = i + j
+                if idx >= len(dialogos) or j >= len(frames_legenda[i:i+colunas*linhas]):
+                    continue
+                frame_path = frames_legenda[idx]
+                start, end, texto = dialogos[idx]
+                # Célula da grade
+                x = margem_x + coluna * (frame_w + espacamento_x)
+                y = pagina_h - (margem_y + (linha+1)*(frame_h + espacamento_y)) + espacamento_y
+                font_size = melhor_tamanho
+                # Split da legenda para ocupar largura, inverter ordem das linhas (HQ), e desenhar de cima para baixo
+                if c.stringWidth(texto, font_name, font_size) <= frame_w*0.9:
+                    lines = [texto]
+                else:
+                    lines = simpleSplit(texto, font_name, font_size, frame_w*0.9)
+                lines = list(reversed(lines))
+                # Legenda mais acima do frame
+                y_text = y + frame_h - legenda_h + espaco_legenda_frame
+                for idx_line, line in enumerate(lines):
+                    x_text = x + 10  # Margem esquerda
+                    c.setFont(font_name, font_size)
+                    c.setFillColor(black)
+                    c.drawString(x_text, y_text + idx_line * (font_size + 8), line)
+                # Imagem
+                img_y = y + tempo_h
+                img = Image.open(frame_path)
+                img = img.resize((frame_w, img_h), Image.LANCZOS)
+                img_reader = ImageReader(img)
+                c.drawImage(img_reader, x, img_y, width=frame_w, height=img_h)
+                # Tempo da legenda em fonte menor
+                tempo_str = f"{format_time(start)} - {format_time(end)}"
+                tempo_font_size = 18
+                c.setFont(font_name, tempo_font_size)
+                c.setFillColor(red)
+                tempo_width = c.stringWidth(tempo_str, font_name, tempo_font_size)
+                c.drawString(x + (frame_w - tempo_width)/2, y + 8, tempo_str)
         c.showPage()
     c.save()
     print(f"PDF HQ com texto selecionável gerado: {output_pdf}")
