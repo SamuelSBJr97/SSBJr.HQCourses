@@ -26,6 +26,7 @@ def baixar_youtube_com_legenda(url):
         "yt-dlp",
         "-f", "mp4",
         "--write-subs",
+        "--write-auto-subs",
         "--sub-lang", "en",
         "--sub-format", "srv3/srv2/srv1/srv",
         "-o", f"{video_id}.%(ext)s",
