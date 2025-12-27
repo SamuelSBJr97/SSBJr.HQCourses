@@ -22,10 +22,10 @@ os.makedirs(temp_dir, exist_ok=True)
 # Parâmetros de layout
 pagina_largura_mm = 210  # A4 largura em mm
 pagina_altura_mm = 297   # A4 altura em mm
-margem_mm = 10
-espaco_legenda_frame_mm = 6
+margem_mm = 18  # margem vertical maior
+espaco_legenda_frame_mm = 2  # margem menor entre texto e frame
 fonte_tamanho = 14  # Tamanho padrão para leitura
-fonte_nome = 'Arial'
+fonte_nome = 'helvetica'
 
 # Função para ler SRT
 def parse_srt(srt_path):
@@ -73,9 +73,9 @@ def gerar_pdf_leve_grid(video_path, srt_path, output_pdf, colunas=2, linhas=3):
 
     cell_w = (pagina_largura_mm - 2 * margem_mm) / colunas
     cell_h = (pagina_altura_mm - 2 * margem_mm) / linhas
-    legenda_h = 0.22 * cell_h
     tempo_h = 0.13 * cell_h
-    img_h = cell_h - legenda_h - tempo_h - espaco_legenda_frame_mm
+    min_fonte_legenda = 9
+    max_fonte_legenda = fonte_tamanho
 
     for i in range(0, len(dialogos), colunas * linhas):
         pdf.add_page()
@@ -87,36 +87,61 @@ def gerar_pdf_leve_grid(video_path, srt_path, output_pdf, colunas=2, linhas=3):
             img = get_frame_at_time(cap, start)
             if img is None:
                 continue
-            # Redimensiona imagem para caber na célula
             img_w, img_h_px = img.size
-            ratio = min(cell_w / img_w * 3.78, img_h / img_h_px * 3.78)  # 1 px = 0.2646 mm, 1 mm = 3.78 px
-            new_w = int(img_w * ratio)
-            new_h = int(img_h_px * ratio)
-            img_resized = img.resize((new_w, new_h), Image.LANCZOS)
-            temp_img_path = os.path.join(temp_dir, f'frame_leve_grid_{idx:05d}.jpg')
-            img_resized.save(temp_img_path, 'JPEG', quality=100)
-
             col = j % colunas
             row = j // colunas
             x0 = margem_mm + col * cell_w
             y0 = margem_mm + row * cell_h
 
-            # Tempo
-            tempo_str = f"{format_time(start)} - {format_time(end)}"
-            pdf.set_xy(x0, y0)
-            pdf.set_font(fonte_nome, style='B', size=fonte_tamanho-4)
-            pdf.set_text_color(200, 0, 0)
-            pdf.cell(cell_w, tempo_h, tempo_str, ln=2, align='C')
-            # Legenda
-            pdf.set_font(fonte_nome, size=fonte_tamanho)
+            # --- CÉLULA DA LEGENDA (TOPO) ---
+            legenda_font = max_fonte_legenda
+            line_spacing = 1
+            max_legenda_h = cell_h * 0.22
+            while legenda_font >= min_fonte_legenda:
+                pdf.set_font(fonte_nome, size=legenda_font)
+                lines = pdf.multi_cell(cell_w - 4, legenda_font + line_spacing, texto, align='L', split_only=True)
+                legenda_h = len(lines) * (legenda_font + line_spacing)
+                if legenda_h <= max_legenda_h:
+                    break
+                legenda_font -= 1
+            pdf.set_font(fonte_nome, size=legenda_font)
             pdf.set_text_color(0, 0, 0)
-            y_legenda = pdf.get_y()
+            y_legenda = y0 + 2
             pdf.set_xy(x0 + 2, y_legenda)
-            pdf.multi_cell(cell_w - 4, 6, texto, align='L')
-            # Imagem
-            y_img = y0 + tempo_h + legenda_h + espaco_legenda_frame_mm
+            max_lines = int(max_legenda_h // (legenda_font + line_spacing))
+            if len(lines) > max_lines:
+                lines = lines[:max_lines]
+                if lines:
+                    lines[-1] = lines[-1].rstrip() + '...'
+            for line in lines:
+                pdf.set_xy(x0 + 2, y_legenda)
+                pdf.cell(cell_w - 4, legenda_font + line_spacing, line, ln=2, align='L')
+                y_legenda += legenda_font + line_spacing
+
+            # --- CÉLULA DO FRAME+TEMPO (ABAIXO) ---
+            frame_cell_y = y0 + max_legenda_h + 4
+            frame_cell_h = cell_h - max_legenda_h - 4
+            # Redimensionar imagem para caber na célula do frame
+            tempo_font_size = max(fonte_tamanho-6, 8)
+            tempo_h = tempo_font_size + 2
+            max_img_h = frame_cell_h - tempo_h - 4
+            ratio = min(cell_w / img_w * 3.78, max_img_h / img_h_px * 3.78)
+            new_w = int(img_w * ratio)
+            new_h = int(img_h_px * ratio)
+            img_resized = img.resize((new_w, new_h), Image.LANCZOS)
+            temp_img_path = os.path.join(temp_dir, f'frame_leve_grid_{idx:05d}.jpg')
+            img_resized.save(temp_img_path, 'JPEG', quality=100)
             x_img = x0 + (cell_w - new_w / 3.78) / 2
+            y_img = frame_cell_y
             pdf.image(temp_img_path, x=x_img, y=y_img, w=new_w / 3.78, h=new_h / 3.78)
+            # Tempo logo abaixo do frame
+            tempo_str = f"{format_time(start)} - {format_time(end)}"
+            tempo_margin = 8
+            y_tempo = y_img + (new_h / 3.78) + 2
+            pdf.set_xy(x0 + tempo_margin, y_tempo)
+            pdf.set_font(fonte_nome, style='B', size=tempo_font_size)
+            pdf.set_text_color(200, 0, 0)
+            pdf.cell(cell_w - 2*tempo_margin, tempo_h, tempo_str, ln=0, align='C')
 
     cap.release()
     pdf.output(output_pdf)
