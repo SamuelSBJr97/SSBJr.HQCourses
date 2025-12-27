@@ -24,11 +24,11 @@ os.makedirs(temp_dir, exist_ok=True)
 
 
 # Parâmetros comuns
-pagina_tamanho = (2480, 3508)  # A4 300dpi
-margem_x = 60
-margem_y = 60
-espacamento_x = 20
-espacamento_y = 20
+pagina_tamanho = (1654, 2339)  # A4 200dpi para reduzir tamanho do arquivo
+margem_x = 40
+margem_y = 40
+espacamento_x = 15
+espacamento_y = 15
 fonte_tamanho = 96  # Fonte maior para HQ
 # Fonte comum de leitura: Arial (ou padrão do sistema)
 fonte_path = None  # None = fonte padrão do sistema (Arial, DejaVu, etc)
@@ -126,9 +126,7 @@ def format_time(seg):
     s = int(seg % 60)
     return f"{h:02}:{m:02}:{s:02}"
 
-
-
-# Gera imagens com legenda, sem borda, tempo e compressão JPEG (texto ajustado ao quadro)
+# Gera imagens dos frames sem texto (para PDF com texto vetorial)
 frames_legenda = []
 for idx, (start, end, texto) in enumerate(dialogos):
     img = get_frame_at_time(cap, start)
@@ -136,36 +134,12 @@ for idx, (start, end, texto) in enumerate(dialogos):
         continue
     largura, altura = img.size
     quadro_w = largura
-    # Espaço para tempo da legenda
-    tempo_h = fonte_tempo.size + 24
-    # Espaço disponível para legenda: metade do quadro
-    legenda_h = altura // 2
-    quadro_h = altura + legenda_h + tempo_h
-    img_y = legenda_h
-    quadro = Image.new('RGB', (quadro_w, quadro_h), (255,255,255))
-    draw = ImageDraw.Draw(quadro)
-    # Ajusta fonte para caber perfeitamente
-    font_path = fonte_path or "arial.ttf"
-    font_legenda, legenda_lines, line_height = fit_text_to_box(texto, font_path, quadro_w, legenda_h, min_font=16, max_font=fonte_tamanho)
-    # Renderiza as linhas da legenda
-    y_text = (legenda_h - (len(legenda_lines)*line_height))//2
-    for line in legenda_lines:
-        bbox = font_legenda.getbbox(line)
-        w = bbox[2] - bbox[0]
-        x_text = (quadro_w - w)//2
-        draw.text((x_text, y_text), line, font=font_legenda, fill=(0,0,0))
-        y_text += line_height
-    # Cola imagem logo abaixo da legenda
+    quadro = Image.new('RGB', (quadro_w, altura), (255,255,255))
     img_resized = img.resize((quadro_w, altura), Image.LANCZOS)
-    quadro.paste(img_resized, (0, img_y))
-    # Tempo da legenda em vermelho, centralizado, abaixo do frame
-    tempo_str = f"{format_time(start)} - {format_time(end)}"
-    tempo_y = img_y + altura + 8
-    tempo_x = quadro_w // 2
-    draw.text((tempo_x, tempo_y), tempo_str, font=fonte_tempo, fill=(220,0,0), anchor="ma")
+    quadro.paste(img_resized, (0, 0))
     # Compressão JPEG
     temp_path = os.path.join(temp_dir, f'frame_{idx:05d}.jpg')
-    quadro.save(temp_path, 'JPEG', quality=90, optimize=True)
+    quadro.save(temp_path, 'JPEG', quality=80, optimize=True)
     frames_legenda.append(temp_path)
 
 cap.release()
@@ -195,10 +169,10 @@ def montar_pdf(frames_legenda, colunas, linhas, output_pdf):
         paginas[0].save(
             output_pdf,
             "PDF",
-            resolution=300,
+            resolution=200,
             save_all=True,
             append_images=paginas[1:],
-            quality=90,
+            quality=80,
             optimize=True
         )
         print(f"PDF HQ gerado: {output_pdf}")
@@ -209,7 +183,7 @@ def montar_pdf(frames_legenda, colunas, linhas, output_pdf):
 # --- PDF com texto selecionável e pesquisável usando reportlab ---
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.utils import ImageReader
+from reportlab.lib.utils import ImageReader, simpleSplit
 from reportlab.lib.colors import Color, black, red
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
@@ -226,8 +200,9 @@ def montar_pdf_texto(frames_legenda, dialogos, colunas, linhas, output_pdf):
 
     frame_w = (pagina_w - 2*margem_x - (colunas-1)*espacamento_x) // colunas
     frame_h = (pagina_h - 2*margem_y - (linhas-1)*espacamento_y) // linhas
-    legenda_h = frame_h // 2
-    tempo_h = 60  # Altura aproximada para tempo
+    legenda_h = int(0.4 * frame_h)
+    tempo_h = 60
+    img_h = frame_h - legenda_h - tempo_h
 
     for i in range(0, len(frames_legenda), colunas*linhas):
         for j, frame_path in enumerate(frames_legenda[i:i+colunas*linhas]):
@@ -239,50 +214,27 @@ def montar_pdf_texto(frames_legenda, dialogos, colunas, linhas, output_pdf):
             coluna = j % colunas
             x = margem_x + coluna * (frame_w + espacamento_x)
             y = pagina_h - (margem_y + (linha+1)*(frame_h + espacamento_y)) + espacamento_y
-            # Área da legenda
-            legenda_box_h = int(0.8 * frame_h)  # 80% da altura do quadro
-            # Ajustar tamanho da fonte para caber 80% da área
-            max_font = 200
-            min_font = 16
-            font_size = max_font
-            while font_size > min_font:
-                c.setFont(font_name, font_size)
-                lines = []
-                words = texto.split()
-                line = ''
-                for word in words:
-                    test_line = (line + ' ' + word).strip()
-                    if c.stringWidth(test_line, font_name, font_size) > frame_w*0.95:
-                        lines.append(line)
-                        line = word
-                    else:
-                        line = test_line
-                if line:
-                    lines.append(line)
-                total_text_height = len(lines) * (font_size + 8)
-                if total_text_height <= legenda_box_h:
-                    break
-                font_size -= 2
-            # Centralizar verticalmente
-            y_text = y + frame_h - (total_text_height + tempo_h + 10)
+            # Usar tamanho fixo de fonte para legenda, alinhado à esquerda
+            font_size = 40
+            lines = simpleSplit(texto, font_name, font_size, frame_w*0.9)
+            # Alinhar à esquerda
+            y_text = y + frame_h - legenda_h
             for line in lines:
-                text_width = c.stringWidth(line, font_name, font_size)
-                x_text = x + (frame_w - text_width) / 2
+                x_text = x + 10  # Margem esquerda
                 c.setFillColor(black)
                 c.drawString(x_text, y_text, line)
                 y_text += font_size + 8
             # Imagem
-            img = Image.open(frame_path)
             img_y = y + tempo_h
-            img_h = frame_h - tempo_h
+            img = Image.open(frame_path)
             img = img.resize((frame_w, img_h), Image.LANCZOS)
             img_reader = ImageReader(img)
             c.drawImage(img_reader, x, img_y, width=frame_w, height=img_h)
-            # Tempo da legenda
+            # Tempo da legenda em fonte menor
             tempo_str = f"{format_time(start)} - {format_time(end)}"
-            c.setFont(font_name, 40)
+            c.setFont(font_name, 30)
             c.setFillColor(red)
-            tempo_width = c.stringWidth(tempo_str, font_name, 40)
+            tempo_width = c.stringWidth(tempo_str, font_name, 30)
             c.drawString(x + (frame_w - tempo_width)/2, y + 8, tempo_str)
         c.showPage()
     c.save()
@@ -292,7 +244,3 @@ def montar_pdf_texto(frames_legenda, dialogos, colunas, linhas, output_pdf):
 montar_pdf_texto(frames_legenda, dialogos, 2, 3, 'hq_livro_2x3_texto.pdf')
 # Gera PDF 1x6 (imagem + texto selecionável)
 montar_pdf_texto(frames_legenda, dialogos, 1, 6, 'hq_livro_1x6_texto.pdf')
-
-# Mantém também a versão só imagem, se desejar
-montar_pdf(frames_legenda, 2, 3, output_pdf_2x3)
-montar_pdf(frames_legenda, 1, 6, output_pdf_1x6)
