@@ -5,3 +5,5 @@ PyMuPDF
 PyMuPDF>=1.24.0
 Pillow>=10.0.0
 reportlab
+yt-dlp
+fpdf
