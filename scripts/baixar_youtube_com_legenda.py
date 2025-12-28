@@ -54,6 +54,24 @@ def baixar_youtube_com_legenda(url):
                 except Exception as e:
                     print(f"Falha ao renomear {f} -> {target_mp4}: {e}")
 
+    # Renomeia a legenda gerada para transcript.<ext> (preserva a extensão que veio)
+    import re as _re
+    subtitle_found = False
+    for f in os.listdir('.'):
+        m = _re.match(rf"^{_re.escape(video_id)}(?:\.en)?\.(srv3|srv|srt|vtt)$", f, _re.IGNORECASE)
+        if m:
+            ext = m.group(1).lower()
+            target_sub = f"transcript.{ext}"
+            try:
+                os.replace(f, target_sub)
+                print(f"Legenda renomeada: {target_sub}")
+            except Exception as e:
+                print(f"Falha ao renomear legenda {f} -> {target_sub}: {e}")
+            subtitle_found = True
+            break
+    if not subtitle_found:
+        print("Nenhuma legenda compatível encontrada para renomear.")
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Uso: python baixar_youtube_com_legenda.py <url_do_video>")
