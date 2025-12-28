@@ -117,9 +117,23 @@ def gerar_pdf_grid(colunas, linhas, output_pdf_name):
 
     cell_w = (pagina_largura_mm - 2 * margem_mm) / colunas
     cell_h = (pagina_altura_mm - 2 * margem_mm) / linhas
-    tempo_h = 0.13 * cell_h
     min_fonte_legenda = 9
     max_fonte_legenda = fonte_tamanho
+
+    # Espaço reservado para legenda (fração fixa da célula)
+    max_legenda_h = cell_h * 0.22
+    tempo_font_size = max(fonte_tamanho - 6, 8)
+    tempo_h = tempo_font_size + 2
+    # Área disponível para a imagem (mm)
+    target_img_w_mm = cell_w - 4
+    target_img_h_mm = cell_h - max_legenda_h - 4 - tempo_h
+    if target_img_h_mm < 10:
+        # garante um tamanho mínimo razoável
+        target_img_h_mm = max(10, cell_h * 0.25)
+    # converte para pixels aproximados (1 mm ~= 3.78 px)
+    mm_to_px = 3.78
+    target_img_w_px = int(target_img_w_mm * mm_to_px)
+    target_img_h_px = int(target_img_h_mm * mm_to_px)
 
     # Reabre o vídeo para cada geração (garante posicionamento correto)
     cap_local = cv2.VideoCapture(video_path)
@@ -127,6 +141,22 @@ def gerar_pdf_grid(colunas, linhas, output_pdf_name):
         raise RuntimeError(f'Não foi possível abrir o vídeo: {video_path}')
 
     out_tag = os.path.splitext(output_pdf_name)[0]
+
+    def center_crop_and_resize(img, target_w, target_h):
+        src_w, src_h = img.size
+        src_ar = src_w / src_h
+        tgt_ar = target_w / target_h
+        if src_ar > tgt_ar:
+            # imagem mais larga -> crop sides
+            new_w = int(src_h * tgt_ar)
+            left = (src_w - new_w) // 2
+            img_cropped = img.crop((left, 0, left + new_w, src_h))
+        else:
+            # imagem mais alta -> crop top/bottom
+            new_h = int(src_w / tgt_ar)
+            top = (src_h - new_h) // 2
+            img_cropped = img.crop((0, top, src_w, top + new_h))
+        return img_cropped.resize((target_w, target_h), Image.LANCZOS)
 
     for i in range(0, len(dialogos), colunas * linhas):
         pdf.add_page()
@@ -136,8 +166,10 @@ def gerar_pdf_grid(colunas, linhas, output_pdf_name):
                 break
             start, end, texto = dialogos[idx]
             img = get_frame_at_time(cap_local, start)
-            if img is None:
-                continue
+            has_text = bool(str(texto).strip())
+            if img is None or not has_text:
+                # não inclui frame quando não há texto de legenda
+                img = None
             img_w, img_h_px = img.size
             col = j % colunas
             row = j // colunas
@@ -171,26 +203,21 @@ def gerar_pdf_grid(colunas, linhas, output_pdf_name):
 
             # --- CÉLULA DO FRAME+TEMPO (ABAIXO) ---
             frame_cell_y = y0 + max_legenda_h + 4
-            frame_cell_h = cell_h - max_legenda_h - 4
-            tempo_font_size = max(fonte_tamanho-6, 8)
-            tempo_h = tempo_font_size + 2
-            max_img_h = frame_cell_h - tempo_h - 4
-            ratio = min(cell_w / img_w * 3.78, max_img_h / img_h_px * 3.78)
-            new_w = int(img_w * ratio)
-            new_h = int(img_h_px * ratio)
-            img_resized = img.resize((new_w, new_h), Image.LANCZOS)
-            temp_img_path = os.path.join(temp_dir, f'{out_tag}_frame_{idx:05d}.jpg')
-            img_resized.save(temp_img_path, 'JPEG', quality=100)
-            x_img = x0 + (cell_w - new_w / 3.78) / 2
-            y_img = frame_cell_y
-            pdf.image(temp_img_path, x=x_img, y=y_img, w=new_w / 3.78, h=new_h / 3.78)
-            tempo_str = f"{format_time(start)} - {format_time(end)}"
-            tempo_margin = 8
-            y_tempo = y_img + (new_h / 3.78) + 2
-            pdf.set_xy(x0 + tempo_margin, y_tempo)
-            pdf.set_font(fonte_nome, style='B', size=tempo_font_size)
-            pdf.set_text_color(200, 0, 0)
-            pdf.cell(cell_w - 2*tempo_margin, tempo_h, tempo_str, ln=0, align='C')
+            if img is not None:
+                # usa tamanho único por célula: crop central + resize
+                img_resized = center_crop_and_resize(img, target_img_w_px, target_img_h_px)
+                temp_img_path = os.path.join(temp_dir, f'{out_tag}_frame_{idx:05d}.jpg')
+                img_resized.save(temp_img_path, 'JPEG', quality=90)
+                x_img = x0 + (cell_w - target_img_w_mm) / 2
+                y_img = frame_cell_y
+                pdf.image(temp_img_path, x=x_img, y=y_img, w=target_img_w_mm, h=target_img_h_mm)
+                tempo_str = f"{format_time(start)} - {format_time(end)}"
+                tempo_margin = 8
+                y_tempo = y_img + target_img_h_mm + 2
+                pdf.set_xy(x0 + tempo_margin, y_tempo)
+                pdf.set_font(fonte_nome, style='B', size=tempo_font_size)
+                pdf.set_text_color(200, 0, 0)
+                pdf.cell(cell_w - 2*tempo_margin, tempo_h, tempo_str, ln=0, align='C')
 
     cap_local.release()
     pdf.output(output_pdf_name)
