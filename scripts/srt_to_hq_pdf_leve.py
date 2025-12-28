@@ -21,7 +21,7 @@ from fpdf import FPDF
 
 # CONFIGURAÇÕES
 video_path = 'video.mp4'  # Caminho do vídeo
-srt_path = 'transcript.srt'  # Caminho do SRT
+srt_path = 'transcript'  # Caminho do SRT
 output_pdf = 'hq_livro_leve.pdf'
 temp_dir = 'frames_hq_temp'
 os.makedirs(temp_dir, exist_ok=True)
@@ -90,7 +90,7 @@ def format_time(seg):
 
 
 # Busca legenda: SRT, SRV3 ou SRV (preserva compatibilidade com yt-dlp)
-base_path = os.path.splitext(srt_path)[0]
+base_path = srt_path
 srt_file = base_path + '.srt'
 srv3_file = base_path + '.srv3'
 srv_file = base_path + '.srv'
