@@ -5,25 +5,28 @@ Utiliza a biblioteca fpdf2 para gerar PDFs compactos e otimizados para leitura d
 Requisitos: opencv-python, pillow, numpy, fpdf2
 """
 
-import os, cv2
+import os
+import cv2
 os.environ.setdefault('OPENCV_LOG_LEVEL', 'SILENT')
 try:
     cv2.setLogLevel(cv2.LOG_LEVEL_SILENT)
 except AttributeError:
     pass
-cap = cv2.VideoCapture('video.mp4')
 
-import os
+# Pasta base: diretório onde o script está localizado
+script_dir = os.path.abspath(os.path.dirname(__file__))
+
 from PIL import Image
 import numpy as np
 import re
 from fpdf import FPDF
 
 # CONFIGURAÇÕES
-video_path = 'video.mp4'  # Caminho do vídeo
-srt_path = 'transcript'  # Caminho do SRT
-output_pdf = 'hq_livro_leve.pdf'
-temp_dir = 'frames_hq_temp'
+video_path = os.path.join(script_dir, 'video.mp4')  # Caminho do vídeo (absoluto)
+# Caminho base para legendas (sem extensão). Ex.: 'transcript' -> 'transcript.srt'
+srt_path = os.path.join(script_dir, 'transcript')
+output_pdf = os.path.join(script_dir, 'hq_livro_leve.pdf')
+temp_dir = os.path.join(script_dir, 'frames_hq_temp')
 os.makedirs(temp_dir, exist_ok=True)
 
 # Parâmetros de layout
@@ -195,7 +198,7 @@ def gerar_pdf_grid(colunas, linhas, output_pdf_name):
 
 
 # Gera duas grades: 1x6 e 2x3
-gerar_pdf_grid(1, 6, 'hq_livro_1x6.pdf')
-gerar_pdf_grid(2, 3, 'hq_livro_2x3.pdf')
+gerar_pdf_grid(1, 6, os.path.join(script_dir, 'hq_livro_1x6.pdf'))
+gerar_pdf_grid(2, 3, os.path.join(script_dir, 'hq_livro_2x3.pdf'))
 
 # Note: the script can also be used by importing and calling `gerar_pdf_grid()`.
