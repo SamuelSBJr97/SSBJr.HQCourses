@@ -34,7 +34,25 @@ def baixar_youtube_com_legenda(url):
     ]
     print("Executando:", " ".join(cmd))
     subprocess.run(cmd, check=True)
-    print(f"Download concluído: {video_id}.mp4 e legenda {video_id}.en.srv")
+    # Após o download, renomeia o MP4 baixado para _video.mp4
+    downloaded_mp4 = f"{video_id}.mp4"
+    target_mp4 = "_video.mp4"
+    if os.path.exists(downloaded_mp4):
+        try:
+            os.replace(downloaded_mp4, target_mp4)
+            print(f"Download concluído: {target_mp4} e legenda {video_id}.en.srv")
+        except Exception as e:
+            print(f"Falha ao renomear {downloaded_mp4} -> {target_mp4}: {e}")
+    else:
+        # tenta detectar qualquer .mp4 gerado e renomear
+        for f in os.listdir('.'):
+            if f.lower().endswith('.mp4'):
+                try:
+                    os.replace(f, target_mp4)
+                    print(f"Download concluído: {target_mp4} (renomeado de {f}) e legenda {video_id}.en.srv")
+                    break
+                except Exception as e:
+                    print(f"Falha ao renomear {f} -> {target_mp4}: {e}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
